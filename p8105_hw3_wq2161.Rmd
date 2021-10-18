@@ -5,3 +5,137 @@ date: "10/16/2021"
 output: github_document
 ---
 
+```{r setup, echo = FALSE, message = FALSE}
+library(tidyverse)
+library(p8105.datasets)
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = "90%"
+)
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+```
+
+
+## Problem 1
+
+Load the *instacart* data from the *p8105.datasets*.
+
+```{r instacart}
+data("instacart")
+instacart = instacart %>%
+  janitor::clean_names()
+```
+
+* Description of the *instacart* dataset
+
+The instacart dataset includes information on some of the items ordered from instacart online grocery website. It contains `r ncol(instacart)` variables which are `r colnames(instacart)`. Specifically, **order_dow** is the day of the week on which the order was placed, and **order_hour_of_day** is the hour of the day on which the order was placed. There are `r nrow(instacart)` items where each row of the dataset is an ordered item. 
+
+For example, the first item was ordered by the user with user id `r pull(instacart[1,], user_id)`, and the order id is `r pull(instacart[1,], order_id)`. It is a `r pull(instacart[1,], product_name)` with product id `r pull(instacart[1,], product_id)`, which belongs to `r pull(instacart[1,], aisle)` aisle with aisle id `r pull(instacart[1,], aisle_id)` and the department of `r pull(instacart[1,], department)` with department id `r pull(instacart[1,], department_id)`. The order in which this item was added to cart was `r pull(instacart[1,], add_to_cart_order)`, and this product has been ordered by this user in the past since reorder has value of `r pull(instacart[1,], reordered)`. This order is the `r pull(instacart[1,], order_number)` order for this user. It was placed on the `r pull(instacart[1,], order_hour_of_day)` hour of the day and the `r pull(instacart[1,], order_dow)` day of the week. The days since the last order for the user is `r pull(instacart[1,], days_since_prior_order)`. It belongs to the "train" evaluation set.
+
+* How many aisles are there, and which aisles are the most items ordered from?
+
+```{r aisle_num}
+aisle_num = instacart %>%
+  group_by(aisle) %>%
+  summarize(n_aisle = n())
+aisle_num
+
+most_items = aisle_num %>%
+  mutate(aisle_rank = min_rank(desc(n_aisle))) %>%
+  filter(aisle_rank == 1)
+most_items
+```
+
+There are `r nrow(aisle_num)` aisles. The aisle that the most items ordered from is `r pull(most_items, aisle)`.
+
+* Make a plot that shows the number of items ordered in each aisle, limiting this to aisles with more than 10000 items ordered. Arrange aisles sensibly, and organize your plot so others can read it.
+
+```{r aisle_num_plot}
+aisle_num %>%
+  filter(n_aisle > 10000) %>%
+  ggplot(aes(x = aisle, y = n_aisle, color = aisle)) +
+  geom_point() +
+  labs(
+    title = "The Number of Items Ordered in Each Aisle",
+    subtitle = "Aisles with more than 10,000 items ordered",
+    x = "Aisle",
+    y = "Number of Items Ordered",
+    caption = "Data from instacart"
+  ) +
+  theme_minimal() +
+  scale_x_discrete(labels = NULL)
+```
+
+* Make a table showing the three most popular items in each of the aisles “baking ingredients”, “dog food care”, and “packaged vegetables fruits”. Include the number of times each item is ordered in your table.
+
+```{r product_num, message = FALSE}
+product_num = instacart %>%
+  filter(aisle %in% c("baking ingredients", "dog food care", "packaged vegetables fruits")) %>%
+  group_by(aisle, product_name) %>%
+  summarize(n_product = n()) %>%
+  mutate(product_rank = min_rank(desc(n_product))) %>%
+  filter(product_rank <= 3) %>%
+  arrange(aisle, product_rank)
+
+product_num
+```
+
+The three most popular items in "baking ingredients" aisle are `r pull(product_num %>% filter(aisle == "baking ingredients"), product_name)`. The three most popular items in "dog food care" aisle are `r pull(product_num %>% filter(aisle == "dog food care"), product_name)`. The three most popular items in "packaged vegetables fruits" aisle are `r pull(product_num %>% filter(aisle == "packaged vegetables fruits"), product_name)`.
+
+* Make a table showing the mean hour of the day at which Pink Lady Apples and Coffee Ice Cream are ordered on each day of the week; format this table for human readers (i.e. produce a 2 x 7 table).
+
+```{r mean_hour, message = FALSE}
+mean_hour = instacart %>%
+  filter(product_name %in% c("Pink Lady Apples", "Coffee Ice Cream")) %>%
+  group_by(product_name, order_dow) %>%
+  summarize(
+    mean = mean(order_hour_of_day)
+  ) %>%
+  mutate(
+    order_dow = recode(order_dow,
+                       `0` = "Sun",
+                       `1` = "Mon",
+                       `2` = "Tue",
+                       `3` = "Wed",
+                       `4` = "Thu",
+                       `5` = "Fri",
+                       `6` = "Sat"
+    )
+  ) %>%
+  pivot_wider(
+    names_from = order_dow,
+    values_from = mean,
+  )
+
+mean_hour %>% knitr::kable(digit = 2)
+```
+
+The table shows the mean hour of the day at which `r pull(mean_hour, product_name)` are ordered on each day of the week. There are 7 days in a week range from 0 to 6, and the mean hour of the day are all above 10 hours.
+
+
+## Problem 2
+
+### Part 1
+
+Load the *BRFSS* data from the *p8105.datasets* and clean.
+
+```{r}
+data("brfss_smart2010")
+
+brfss = brfss_smart2010 %>%
+  janitor::clean_names() %>%
+  filter(
+    topic == "Overall Health",
+    response %in% c("Poor", "Fair", "Good", "Very good", "Excellent")
+    )
+```
+
