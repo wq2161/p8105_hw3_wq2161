@@ -14,14 +14,6 @@ knitr::opts_chunk$set(
   fig.asp = .6,
   out.width = "90%"
 )
-
-options(
-  ggplot2.continuous.colour = "viridis",
-  ggplot2.continuous.fill = "viridis"
-)
-
-scale_colour_discrete = scale_colour_viridis_d
-scale_fill_discrete = scale_fill_viridis_d
 ```
 
 
@@ -37,7 +29,7 @@ instacart = instacart %>%
 
 * Description of the *instacart* dataset
 
-The instacart dataset includes information on some of the items ordered from instacart online grocery website. It contains `r ncol(instacart)` variables which are `r colnames(instacart)`. Specifically, **order_dow** is the day of the week on which the order was placed, and **order_hour_of_day** is the hour of the day on which the order was placed. There are `r nrow(instacart)` items where each row of the dataset is an ordered item. 
+The instacart dataset includes information on some of the items ordered from instacart online grocery website. It contains `r ncol(instacart)` variables which are `r colnames(instacart)`. Specifically, order_dow is the day of the week on which the order was placed, and order_hour_of_day is the hour of the day on which the order was placed. There are `r nrow(instacart)` items where each row of the dataset is an ordered item. 
 
 For example, the first item was ordered by the user with user id `r pull(instacart[1,], user_id)`, and the order id is `r pull(instacart[1,], order_id)`. It is a `r pull(instacart[1,], product_name)` with product id `r pull(instacart[1,], product_id)`, which belongs to `r pull(instacart[1,], aisle)` aisle with aisle id `r pull(instacart[1,], aisle_id)` and the department of `r pull(instacart[1,], department)` with department id `r pull(instacart[1,], department_id)`. The order in which this item was added to cart was `r pull(instacart[1,], add_to_cart_order)`, and this product has been ordered by this user in the past since reorder has value of `r pull(instacart[1,], reordered)`. This order is the `r pull(instacart[1,], order_number)` order for this user. It was placed on the `r pull(instacart[1,], order_hour_of_day)` hour of the day and the `r pull(instacart[1,], order_dow)` day of the week. The days since the last order for the user is `r pull(instacart[1,], days_since_prior_order)`. It belongs to the "train" evaluation set.
 
@@ -62,18 +54,25 @@ There are `r nrow(aisle_num)` aisles. The aisle that the most items ordered from
 ```{r aisle_num_plot}
 aisle_num %>%
   filter(n_aisle > 10000) %>%
-  ggplot(aes(x = aisle, y = n_aisle, color = aisle)) +
+  mutate(aisle = fct_reorder(aisle, n_aisle)) %>%
+  ggplot(aes(x = n_aisle, y = aisle)) +
   geom_point() +
   labs(
     title = "The Number of Items Ordered in Each Aisle",
     subtitle = "Aisles with more than 10,000 items ordered",
-    x = "Aisle",
-    y = "Number of Items Ordered",
+    x = "Number of Items Ordered",
+    y = "Aisle",
     caption = "Data from instacart"
   ) +
   theme_minimal() +
-  scale_x_discrete(labels = NULL)
+  theme(axis.text.y = element_text(size = 8)) +
+  scale_x_continuous(
+    breaks = c(20000, 40000, 60000, 80000, 100000, 120000, 140000),
+    labels = c("20k", "40k", "60k", "80k", "100k", "120k", "140k")
+  )
 ```
+
+Comment
 
 * Make a table showing the three most popular items in each of the aisles “baking ingredients”, “dog food care”, and “packaged vegetables fruits”. Include the number of times each item is ordered in your table.
 
@@ -86,10 +85,11 @@ product_num = instacart %>%
   filter(product_rank <= 3) %>%
   arrange(aisle, product_rank)
 
-product_num
+product_num %>%
+  knitr::kable()
 ```
 
-The three most popular items in "baking ingredients" aisle are `r pull(product_num %>% filter(aisle == "baking ingredients"), product_name)`. The three most popular items in "dog food care" aisle are `r pull(product_num %>% filter(aisle == "dog food care"), product_name)`. The three most popular items in "packaged vegetables fruits" aisle are `r pull(product_num %>% filter(aisle == "packaged vegetables fruits"), product_name)`.
+Based on the table, although these products are the three most popular items of their aisles, the number they were ordered are different. The number of products purchased in baking ingredients is in hundreds, the number of products purchased in dog food care is in tens, and the number of products purchased in packaged vegetables fruits is in thousands. It is obvious that people all need vegetables and fruits for living.
 
 * Make a table showing the mean hour of the day at which Pink Lady Apples and Coffee Ice Cream are ordered on each day of the week; format this table for human readers (i.e. produce a 2 x 7 table).
 
@@ -119,23 +119,101 @@ mean_hour = instacart %>%
 mean_hour %>% knitr::kable(digit = 2)
 ```
 
-The table shows the mean hour of the day at which `r pull(mean_hour, product_name)` are ordered on each day of the week. There are 7 days in a week range from 0 to 6, and the mean hour of the day are all above 10 hours.
+The table shows the mean hour of the day at which `r pull(mean_hour, product_name)` are ordered on each day of the week. The mean hour of the day are all after 10 hours before 16 hours, indicating that the average time for people to shop is around afternoon.
 
 
 ## Problem 2
 
-### Part 1
-
 Load the *BRFSS* data from the *p8105.datasets* and clean.
 
-```{r}
+```{r brfss}
 data("brfss_smart2010")
 
 brfss = brfss_smart2010 %>%
   janitor::clean_names() %>%
+  rename(
+    state = locationabbr,
+    location = locationdesc,
+  ) %>%
   filter(
     topic == "Overall Health",
     response %in% c("Poor", "Fair", "Good", "Very good", "Excellent")
-    )
+    ) %>%
+  mutate(
+    response = factor(response, levels = c("Poor", "Fair", "Good", "Very good", "Excellent"))
+  )
+brfss
 ```
+
+* In 2002, which states were observed at 7 or more locations? What about in 2010?
+
+```{r state_year}
+state_2002 = brfss %>%
+  filter(year == 2002) %>%
+  group_by(state) %>%
+  summarize(n_location = n()) %>%
+  filter(n_location >= 7)
+state_2002
+
+state_2010 = brfss %>%
+  filter(year == 2010) %>%
+  group_by(state) %>%
+  summarize(n_location = n()) %>%
+  filter(n_location >= 7)
+state_2010
+```
+
+In 2002, the states which were observed at 7 or more locations are `r pull(state_2002, state)`. In 2010, the states which were observed at 7 or more locations are `r pull(state_2010, state)`.
+
+* Construct a dataset that is limited to Excellent responses, and contains, year, state, and a variable that averages the data_value across locations within a state. Make a “spaghetti” plot of this average value over time within a state (that is, make a plot showing a line for each state across years – the geom_line geometry and group aesthetic will help).
+
+```{r excellent_df_plot, message = FALSE, warning = FALSE}
+excellent_df = brfss %>%
+  filter(response == "Excellent") %>%
+  group_by(year, state) %>%
+  summarize(mean_data_value = mean(data_value))
+excellent_df
+
+excellent_df %>%
+  ggplot(aes(x = year, y = mean_data_value)) +
+  geom_line(aes(group = state), alpha = .5) +
+  labs(
+    title = "Average Data Value vs. Year for Each State",
+    subtitle = "Only for Excellent Responses",
+    x = "Year",
+    y = "Average Data Value",
+    caption = "Data from brfss_smart2010 dataset"
+  ) +
+  theme_minimal()
+```
+
+Based on the plot, most of the average data value range from 15 to 30. The general trend of the average data value for states is decreasing with time. While there are some states whose average data value is fluctuated up and down with time.
+
+* Make a two-panel plot showing, for the years 2006, and 2010, distribution of data_value for responses (“Poor” to “Excellent”) among locations in NY State.
+
+```{r NY_df, message = FALSE}
+NY_df = brfss %>%
+  filter(
+    year %in% c(2006, 2010),
+    state == "NY"
+  ) %>%
+  group_by(year, response) %>%
+  summarize(data_value)
+NY_df
+
+NY_df %>%
+  ggplot(aes(x = response, y = data_value, color = year)) +
+  geom_point() +
+  facet_grid(. ~ year) +
+  labs(
+    title = "Data Value vs. Responses",
+    subtitle = "For NY in Year 2006 and 2010",
+    x = "Responses",
+    y = "Data Value",
+    caption = "Data from brfss_smart2010 dataset"
+  ) +
+  theme(legend.position = "none")
+```
+
+Comment
 
