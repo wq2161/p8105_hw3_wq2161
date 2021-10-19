@@ -90,7 +90,7 @@ product_num %>%
 
 Based on the table, although these products are the three most popular items of their aisles, the number they were ordered are different. The number of products purchased in baking ingredients is in hundreds, the number of products purchased in dog food care is in tens, and the number of products purchased in packaged vegetables fruits is in thousands. It is obvious that people all need vegetables and fruits for living.
 
-* Make a table showing the mean hour of the day at which Pink Lady Apples and Coffee Ice Cream are ordered on each day of the week; format this table for human readers (i.e. produce a 2 x 7 table).
+* Make a table showing the mean hour of the day at which Pink Lady Apples and Coffee Ice Cream are ordered on each day of the week.
 
 ```{r mean_hour, message = FALSE}
 mean_hour = instacart %>%
@@ -153,7 +153,7 @@ state_2010
 
 In 2002, there were `r nrow(state_2002)` states which were observed at 7 or more locations. In 2010, there were `r nrow(state_2010)` states which were observed at 7 or more locations.
 
-* Construct a dataset that is limited to Excellent responses, and contains, year, state, and a variable that averages the data_value across locations within a state. Make a “spaghetti” plot of this average value over time within a state (that is, make a plot showing a line for each state across years – the geom_line geometry and group aesthetic will help).
+* Construct a dataset that is limited to Excellent responses, and contains, year, state, and a variable that averages the data_value across locations within a state. Make a “spaghetti” plot of this average value over time within a state.
 
 ```{r excellent_df_plot, message = FALSE, warning = FALSE}
 excellent_df = brfss %>%
@@ -164,7 +164,7 @@ excellent_df
 
 excellent_df %>%
   ggplot(aes(x = year, y = mean_data_value)) +
-  geom_line(aes(group = state), alpha = .5) +
+  geom_line(aes(color = state), alpha = .5) +
   labs(
     title = "Average Data Value vs. Year for Each State",
     subtitle = "Only for Excellent Responses",
@@ -172,7 +172,8 @@ excellent_df %>%
     y = "Average Data Value",
     caption = "Data from brfss_smart2010 dataset"
   ) +
-  theme_minimal()
+  theme_minimal() +
+  theme(legend.position = "right", legend.key.size = unit(0.02, "cm"))
 ```
 
 Based on the plot, most of the average data value range from 15 to 30. The general trend of the average data value for states is decreasing with time. While there are some states whose average data value is fluctuated up and down with time.
@@ -207,7 +208,7 @@ Comment
 
 ## Problem 3
 
-* Load, tidy, and otherwise wrangle the data. Your final dataset should include all originally observed variables and values; have useful variable names; include a weekday vs weekend variable; and encode data with reasonable variable classes. Describe the resulting dataset (e.g. what variables exist, how many observations, etc).
+* Load, tidy, and otherwise wrangle the data.
 
 ```{r accel_data, message = FALSE}
 accel_data = read_csv("data/accel_data.csv")
@@ -218,35 +219,41 @@ accel_data = accel_data %>%
   relocate(week, day_id, day, day_end) %>%
   pivot_longer(
     activity_1:activity_1440,
-    names_to = "activity_count",
+    names_to = "activity_min",
     values_to = "data_value"
   ) %>%
   mutate(
     week = as.numeric(week),
     day_id = as.numeric(day_id),
-    day = as.character(day),
+    day = factor(day, levels = c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
     day_end = as.character(day_end),
-    activity_count = as.character(activity_count),
+    activity_min = as.character(activity_min),
     data_value = as.numeric(data_value)
   )
 
 accel_data
 ```
 
-The dataset includes `r ncol(accel_data)` variables, which are `r colnames(accel_data)`, and `r nrow(accel_data)` observations.
+The dataset is a record of 5 weeks of accelerometer data collected on a 63 year-old male with BMI 25, who was admitted to the Advanced Cardiac Care Center of Columbia University Medical Center and diagnosed with congestive heart failure (CHF). The dataset includes `r ncol(accel_data)` variables, which are `r colnames(accel_data)`, and `r nrow(accel_data)` observations. Specifically, the activity_min is the activity counts for each minute of a 24-hour day starting at midnight.
 
-* Traditional analyses of accelerometer data focus on the total activity over the day. Using your tidied dataset, aggregate across minutes to create a total activity variable for each day, and create a table showing these totals. Are any trends apparent?
+* Aggregate across minutes to create a total activity variable for each day, and create a table showing these totals.
 
 ```{r accel_total, message = FALSE}
 accel_total = accel_data %>%
-  group_by(week, day_id, day, day_end) %>%
-  summarize(total_activity = sum(data_value))
+  group_by(week, day) %>%
+  summarize(total_activity = sum(data_value)) %>%
+  pivot_wider(
+    names_from = day,
+    values_from = total_activity
+  )
 
 accel_total %>%
   knitr::kable()
 ```
 
-* Accelerometer data allows the inspection activity over the course of the day. Make a single-panel plot that shows the 24-hour activity time courses for each day and use color to indicate day of the week. Describe in words any patterns or conclusions you can make based on this graph.
+It doesn't show an apparent trend for the data, but generally, the data on weekend is less than weekday, especially for week 3 to 5.
+
+* Make a single-panel plot that shows the 24-hour activity time courses for each day and use color to indicate day of the week.
 
 ```{r}
 accel_plot_df = accel_data %>%
