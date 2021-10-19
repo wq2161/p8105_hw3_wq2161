@@ -187,25 +187,27 @@ NY_df = brfss %>%
     year %in% c(2006, 2010),
     state == "NY"
   ) %>%
-  group_by(year,location, response) %>%
+  group_by(year, response) %>%
   summarize(data_value)
 NY_df
 
 NY_df %>%
-  ggplot(aes(x = data_value, color = year)) +
+  ggplot(aes(x = data_value, color = year, fill = response)) +
   geom_density(alpha = 0.5) +
   facet_grid(. ~ year) +
   labs(
-    title = "The Distribution of Data Value",
-    subtitle = "For All Responses in NY in Year 2006 and 2010",
+    title = "The Distribution of Data Value for Responses",
+    subtitle = "Among Locations in NY for Year 2006 and 2010",
     x = "Data Value",
     y = "Density of Data Value",
     caption = "Data from brfss_smart2010 dataset"
   ) +
-  theme(legend.position = "none")
+  theme_minimal() +
+  scale_color_viridis_c() +
+  scale_fill_viridis_d()
 ```
 
-(Comment)
+Both 2006 and 2010 have the highest density of data value for poor response. By comparing the peak of the five responses, the order of data value from low to high is poor < fair < excellent < good < very good. The peak of the responses except for poor move to the right in 2010, indicating that the data value of increased.
 
 ## Problem 3
 
