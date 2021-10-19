@@ -56,7 +56,7 @@ aisle_num %>%
   filter(n_aisle > 10000) %>%
   mutate(aisle = fct_reorder(aisle, n_aisle)) %>%
   ggplot(aes(x = n_aisle, y = aisle)) +
-  geom_point(alpha = .5) +
+  geom_point(alpha = .5, size = .8) +
   labs(
     title = "The Number of Items Ordered in Each Aisle",
     subtitle = "Aisles with more than 10,000 items ordered",
@@ -65,6 +65,7 @@ aisle_num %>%
     caption = "Data from instacart"
   ) +
   theme_minimal() +
+  theme(axis.text.y = element_text(size = 5)) +
   scale_x_continuous(
     breaks = c(20000, 40000, 60000, 80000, 100000, 120000, 140000),
     labels = c("20k", "40k", "60k", "80k", "100k", "120k", "140k")
@@ -151,7 +152,7 @@ state_2010 = brfss %>%
 state_2010
 ```
 
-In 2002, there were `r nrow(state_2002)` states which were observed at 7 or more locations. In 2010, there were `r nrow(state_2010)` states which were observed at 7 or more locations.
+In 2002, there were `r nrow(state_2002)` states which were observed at 7 or more locations, which were `r pull(state_2002, state)`. In 2010, there were `r nrow(state_2010)` states which were observed at 7 or more locations, which were `r pull(state_2010, state)`.
 
 * Construct a dataset that is limited to Excellent responses, and contains, year, state, and a variable that averages the data_value across locations within a state. Make a “spaghetti” plot of this average value over time within a state.
 
@@ -191,20 +192,20 @@ NY_df = brfss %>%
 NY_df
 
 NY_df %>%
-  ggplot(aes(x = data_value, y = location, color = response)) +
-  geom_point(alpha = 0.5) +
+  ggplot(aes(x = data_value, color = year)) +
+  geom_density(alpha = 0.5) +
   facet_grid(. ~ year) +
   labs(
-    title = "Locations vs. Data_Value",
-    subtitle = "For Responses in NY in Year 2006 and 2010",
-    x = "Response",
-    y = "Data Value",
+    title = "The Distribution of Data Value",
+    subtitle = "For All Responses in NY in Year 2006 and 2010",
+    x = "Data Value",
+    y = "Density of Data Value",
     caption = "Data from brfss_smart2010 dataset"
   ) +
-  theme(legend.position = "bottom")
+  theme(legend.position = "none")
 ```
 
-Comment
+(Comment)
 
 ## Problem 3
 
@@ -222,19 +223,21 @@ accel_data = accel_data %>%
     names_to = "activity_min",
     values_to = "data_value"
   ) %>%
+  separate(activity_min, into = c("activity", "minute")) %>%
+  select(-activity) %>%
   mutate(
     week = as.numeric(week),
     day_id = as.numeric(day_id),
-    day = factor(day, levels = c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")),
+    day = factor(day, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")),
     day_end = as.character(day_end),
-    activity_min = as.character(activity_min),
+    minute = as.numeric(minute),
     data_value = as.numeric(data_value)
   )
 
 accel_data
 ```
 
-The dataset is a record of 5 weeks of accelerometer data collected on a 63 year-old male with BMI 25, who was admitted to the Advanced Cardiac Care Center of Columbia University Medical Center and diagnosed with congestive heart failure (CHF). The dataset includes `r ncol(accel_data)` variables, which are `r colnames(accel_data)`, and `r nrow(accel_data)` observations. Specifically, the activity_min is the activity counts for each minute of a 24-hour day starting at midnight.
+The dataset is a record of 5 weeks of accelerometer data collected on a 63 year-old male with BMI 25, who was admitted to the Advanced Cardiac Care Center of Columbia University Medical Center and diagnosed with congestive heart failure (CHF). The dataset includes `r ncol(accel_data)` variables, which are `r colnames(accel_data)`, and `r nrow(accel_data)` observations. The first 5 variables record the specific time of an activity. For example, the first observation is on the 1st day of the 1st week, which is a Friday (a weekday), at 0:01 at midnight. The variable data_value record the data of that activity.
 
 * Aggregate across minutes to create a total activity variable for each day, and create a table showing these totals.
 
@@ -255,14 +258,24 @@ It doesn't show an apparent trend for the data, but generally, the data on weeke
 
 * Make a single-panel plot that shows the 24-hour activity time courses for each day and use color to indicate day of the week.
 
-```{r}
-accel_plot_df = accel_data %>%
-  mutate(
-    day = factor(day, levels = c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
-  )
-
-accel_plot_df %>%
-  ggplot(aes(x = day_id, y = data_value, color = day)) +
-  geom_point(alpha = 0.5)
+```{r 24_hour_plot, message = FALSE}
+accel_data %>%
+  ggplot(aes(x = minute, y = data_value, color = day)) +
+  geom_point(alpha = 0.3, size = 0.5) +
+  geom_smooth(se = FALSE, size = 0.7) + 
+  labs(
+    title = "The Data Value of the 24-Hour Activity Time Courses",
+    subtitle = "For Each Day of the Week",
+    x = "Activity Time",
+    y = "Data Value",
+    caption = "Data from Accel_data dataset"
+  ) +
+  scale_x_continuous(
+    breaks = c(0, 360, 720, 1080, 1440),
+    labels = c("12AM", "6AM", "12PM", "6PM", "12AM")
+  ) +
+  theme_minimal() +
+  scale_color_viridis_d()
 ```
 
+Based on the plot, the activity between 12AM and 6AM was low and stable, and it was increasing by time in a low pace for all the seven days in the week. The activity after 6AM are higher and different between days, especially for Friday to Sunday and the other four days.
